@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotierendes Rechteck</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #f0f0f0;
+        }
+
+        canvas {
+            display: block;
+            background-color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+<canvas id="animationsCanvas"></canvas>
+<div id="werte-anzeige"
+     style="position:fixed;top:20px;left:20px;z-index:10;background:#fff;padding:12px 18px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.12);font-family:Arial,sans-serif;font-size:16px;line-height:1.7;min-width:180px;">
+    <div style=" display: flex; flex-direction: column; gap: 8px;">
+        <b>Geometrie-Werte</b>
+
+
+        <span id="wert-a"></span>
+        <span id="wert-b"></span>
+        <span id="wert-c"></span>
+        <span id="wert-c1" style="display:none;"></span>
+        <span id="wert-c2" style="display:none;"></span>
+        <span id="wert-c3" style="display:none;"></span>
+        <span id="wert-c4" style="display:none;"></span>
+        <span id="wert-e"></span>
+        <span id="wert-e1" style="display:none;"></span>
+        <span id="wert-e2" style="display:none;"></span>
+        <span id="wert-e3" style="display:none;"></span>
+        <span id="wert-e4" style="display:none;"></span>
+
+        <span id="wert-gamma"></span>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('animationsCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Leinwand an die Fenstergröße anpassen
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Definition des Rechtecks und des Drehpunkts
+    const rect = {
+        width: 80,
+        height: 250,
+        // Der Drehpunkt ist der Mittelpunkt des Rechtecks
+        pivotX: 500,
+        pivotY: canvas.height / 2
+    };
+
+    // Definition der Punkte relativ zum Drehpunkt des Rechtecks
+    // A ist die obere linke Ecke des Rechtecks
+    const punktA_rel = {x: -rect.width / 2, y: -rect.height / 2, name: 'A'};
+    // B ist ein Punkt weiter unten auf der gleichen Kante
+    const punktB_rel = {x: +rect.width / 2, y: -rect.height / 2, name: 'B'};
+    const punktC_rel = {x: +rect.width / 2, y: +rect.height / 2, name: 'C'};
+    const punktD_rel = {x: -rect.width / 2, y: +rect.height / 2, name: 'D'};
+    // X ist ein Punkt zwischen A und B
+    const punktX_rel = {x: 0, y: 0, name: 'X'};
+
+    // Definition des externen, statischen Punktes O
+    const punktUmlenk = {x: 800, y: canvas.height / 2 + 200};
+
+    // Rotationswinkel initialisieren
+    let gamma = 0;
+
+    /**
+     * Berechnet die neue Position eines Punktes nach der Rotation um einen Drehpunkt.
+     * @param {object} punkt - Der Punkt, der gedreht werden soll {x, y}.
+     * @param gamma
+     * @returns {object} Die neuen Koordinaten des Punktes {x, y}.
+     */
+    function rotate(punkt, gamma) {
+
+        const p = {x: rect.pivotX + punkt.x, y: rect.pivotY + punkt.y};
+        const drehpunkt = {x: rect.pivotX, y: rect.pivotY};
+        const cosWinkel = Math.cos(gamma);
+        const sinWinkel = Math.sin(gamma);
+
+        // Verschieben des Punktes zum Ursprung, rotieren und zurückverschieben
+        const x = p.x - drehpunkt.x;
+        const y = p.y - drehpunkt.y;
+
+        const neuX = x * cosWinkel - y * sinWinkel;
+        const neuY = x * sinWinkel + y * cosWinkel;
+
+        return {
+            x: neuX + drehpunkt.x,
+            y: neuY + drehpunkt.y
+        };
+    }
+
+    function lineToUmlenk(p, name) {
+        // Linie c (von A nach O) zeichnen
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(punktUmlenk.x, punktUmlenk.y);
+        ctx.strokeStyle = 'cyan';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillText(name, (p.x + punktUmlenk.x) / 2 + 10, (p.y + punktUmlenk.y) / 2);
+    }
+
+    function lineTo(p1, p2, name, strokeStyle = 'purple') {
+        // Linie c (von A nach O) zeichnen
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.strokeStyle = strokeStyle;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillText(name, (p1.x + p2.x) / 2 + 10, (p1.y + p2.y) / 2);
+    }
+
+    function epsilon(angleA, angleC1, name) {
+        ctx.beginPath();
+        ctx.arc(punktUmlenk.x, punktUmlenk.y, 60, angleA, angleC1); // Swapped angles
+        ctx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = 'red';
+        ctx.fillText(name, punktUmlenk.x - 40, punktUmlenk.y - 30);
+    }
+
+    function point(p) {
+        ctx.fillStyle = 'blue';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); // Punkt A
+        ctx.fill();
+    }
+
+    // Plot c in Relation zu gamma oben rechts
+    function plotCvsGamma() {
+        const plotWidth = 320;
+        const plotHeight = 120;
+        const margin = 30;
+        const x0 = canvas.width - plotWidth - margin;
+        const y0 = margin;
+        // Hintergrund
+        ctx.save();
+        ctx.globalAlpha = 0.92;
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(x0, y0, plotWidth, plotHeight);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = '#aaa';
+        ctx.strokeRect(x0, y0, plotWidth, plotHeight);
+        ctx.restore();
+        // Achsen
+        ctx.save();
+        ctx.strokeStyle = '#333';
+        ctx.beginPath();
+        ctx.moveTo(x0 + 40, y0 + plotHeight - 30);
+        ctx.lineTo(x0 + plotWidth - 10, y0 + plotHeight - 30);
+        ctx.moveTo(x0 + 40, y0 + plotHeight - 30);
+        ctx.lineTo(x0 + 40, y0 + 10);
+        ctx.stroke();
+        // Achsenbeschriftung
+        ctx.fillStyle = '#222';
+        ctx.font = '13px Arial';
+        ctx.fillText('γ (rad)', x0 + plotWidth - 55, y0 + plotHeight - 10);
+        ctx.fillText('c', x0 + 10, y0 + 25);
+        ctx.restore();
+        // Plotdaten
+        ctx.save();
+        // c (max) Kurve
+        ctx.strokeStyle = '#e74c3c';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        let first = true;
+
+
+        const gammaDegrees = (gamma * 180 / Math.PI) % 360;
+
+        for (let i = 0; i <= 360; i++) {
+            const iRad = (i + gammaDegrees) * Math.PI / 180;
+            const values = getValues(iRad);
+            const c = values.c;
+            const px = x0 + 40 + (i / 450) * (plotWidth);
+            const py = y0 + plotHeight - 30 - (c / 500) * (plotHeight - 50);
+            if (first) {
+                ctx.moveTo(px, py);
+                first = false;
+            } else {
+                ctx.lineTo(px, py);
+            }
+        }
+        ctx.stroke();
+        // c1 bis c4 Kurven
+        const colors = ['#3498db', '#27ae60', '#f1c40f', '#8e44ad'];
+        const cNames = ['c1', 'c2', 'c3', 'c4'];
+        for (let j = 1; j <= 4; j++) {
+            ctx.beginPath();
+            first = true;
+            for (let i = 0; i <= 0; i++) {
+                const iRad = (i + gammaDegrees) * Math.PI / 180;
+                const values = getValues(iRad);
+                const cVal = values[`laenge_c${j}`];
+                const px = x0 + 40 + (i / 450) * (plotWidth);
+                const py = y0 + plotHeight - 30 - (cVal / 500) * (plotHeight - 50);
+                if (first) {
+                    ctx.moveTo(px, py);
+                    first = false;
+                } else {
+                    ctx.lineTo(px, py);
+                }
+            }
+            ctx.strokeStyle = colors[j - 1];
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    function zeichneSzene() {
+        // Leinwand bei jedem Frame löschen
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const values = getValues(gamma);
+
+        lineTo(values.punktA_abs, values.punktB_abs, '', 'black');
+        lineTo(values.punktB_abs, values.punktC_abs, '', 'black');
+        lineTo(values.punktC_abs, values.punktD_abs, '', 'black');
+        lineTo(values.punktD_abs, values.punktA_abs, '', 'black');
+
+        point(values.punktX_abs);
+
+        // Linie a (von X nach O) zeichnen
+        ctx.beginPath();
+        ctx.moveTo(values.punktX_abs.x, values.punktX_abs.y);
+        ctx.lineTo(punktUmlenk.x, punktUmlenk.y);
+        ctx.strokeStyle = 'orange';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillText('a', (values.punktX_abs.x + punktUmlenk.x) / 2, (values.punktX_abs.y + punktUmlenk.y) / 2 - 10);
+
+        if (values.edge === 'A') {
+            lineToUmlenk(values.punktA_abs, 'c1')
+            lineTo(values.punktA_abs, values.punktX_abs, 'b');
+            epsilon(values.angleA, values.angleC1, 'ε1');
+            point(values.punktA_abs)
+        } else if (values.edge === 'B') {
+            lineToUmlenk(values.punktB_abs, 'c2')
+            lineTo(values.punktB_abs, values.punktX_abs, 'b');
+            epsilon(values.angleA, values.angleC2, 'ε2');
+            point(values.punktB_abs)
+        } else if (values.edge === 'C') {
+            lineToUmlenk(values.punktC_abs, 'c3')
+            lineTo(values.punktC_abs, values.punktX_abs, 'b');
+            epsilon(values.angleA, values.angleC3, 'ε3');
+            point(values.punktC_abs)
+        } else if (values.edge === 'D') {
+            lineToUmlenk(values.punktD_abs, 'c4')
+            lineTo(values.punktD_abs, values.punktX_abs, 'b');
+            epsilon(values.angleA, values.angleC4, 'ε4');
+            point(values.punktD_abs)
+        }
+        point(punktUmlenk);
+
+        // Werte in Textfeldern anzeigen
+        document.getElementById('wert-a').textContent = `a = ${values.laenge_a.toFixed(1)}`;
+        document.getElementById('wert-b').textContent = `b = ${values.laenge_b.toFixed(1)}`;
+        document.getElementById('wert-c').textContent = `c = ${values.c.toFixed(1)}`;
+        document.getElementById('wert-c1').textContent = `c1 = ${values.laenge_c1.toFixed(1)}`;
+        document.getElementById('wert-c2').textContent = `c2 = ${values.laenge_c2.toFixed(1)}`;
+        document.getElementById('wert-c3').textContent = `c3 = ${values.laenge_c3.toFixed(1)}`;
+        document.getElementById('wert-c4').textContent = `c4 = ${values.laenge_c4.toFixed(1)}`;
+        document.getElementById('wert-e').textContent = `ε = ${(values.maxEpsilon * 180 / Math.PI).toFixed(2)}°`;
+        document.getElementById('wert-e1').textContent = `ε1 = ${(values.epsilon1 * 180 / Math.PI).toFixed(2)}°`;
+        document.getElementById('wert-e2').textContent = `ε2 = ${(values.epsilon2 * 180 / Math.PI).toFixed(2)}°`;
+        document.getElementById('wert-e3').textContent = `ε3 = ${(values.epsilon3 * 180 / Math.PI).toFixed(2)}°`;
+        document.getElementById('wert-e4').textContent = `ε4 = ${(values.epsilon4 * 180 / Math.PI).toFixed(2)}°`;
+        document.getElementById('wert-gamma').textContent = `γ = ${(gamma * 180 / Math.PI * -1).toFixed(2)}°`;
+
+        // Plot oben rechts
+        plotCvsGamma();
+    }
+
+    function getValues(winkel) {
+        const punktA_abs = rotate(punktA_rel, winkel);
+        const punktB_abs = rotate(punktB_rel, winkel);
+        const punktC_abs = rotate(punktC_rel, winkel);
+        const punktD_abs = rotate(punktD_rel, winkel);
+        const punktX_abs = rotate(punktX_rel, winkel);
+
+        const angleA = Math.atan2(punktX_abs.y - punktUmlenk.y, punktX_abs.x - punktUmlenk.x);
+        const angleC1 = Math.atan2(punktA_abs.y - punktUmlenk.y, punktA_abs.x - punktUmlenk.x);
+        const angleC2 = Math.atan2(punktB_abs.y - punktUmlenk.y, punktB_abs.x - punktUmlenk.x);
+        const angleC3 = Math.atan2(punktC_abs.y - punktUmlenk.y, punktC_abs.x - punktUmlenk.x);
+        const angleC4 = Math.atan2(punktD_abs.y - punktUmlenk.y, punktD_abs.x - punktUmlenk.x);
+
+        // --- Werte berechnen ---
+        // Längen (Euklidischer Abstand)
+        const laenge_a = Math.sqrt(Math.pow(punktX_abs.x - punktUmlenk.x, 2) + Math.pow(punktX_abs.y - punktUmlenk.y, 2));
+        const laenge_b = Math.sqrt(Math.pow(punktA_abs.x - punktX_abs.x, 2) + Math.pow(punktA_abs.y - punktX_abs.y, 2));
+        const laenge_c1 = Math.sqrt(Math.pow(punktA_abs.x - punktUmlenk.x, 2) + Math.pow(punktA_abs.y - punktUmlenk.y, 2));
+        const laenge_c2 = Math.sqrt(Math.pow(punktB_abs.x - punktUmlenk.x, 2) + Math.pow(punktB_abs.y - punktUmlenk.y, 2));
+        const laenge_c3 = Math.sqrt(Math.pow(punktC_abs.x - punktUmlenk.x, 2) + Math.pow(punktC_abs.y - punktUmlenk.y, 2));
+        const laenge_c4 = Math.sqrt(Math.pow(punktD_abs.x - punktUmlenk.x, 2) + Math.pow(punktD_abs.y - punktUmlenk.y, 2));
+
+        // Winkel in Grad
+        const epsilon1 = angleC1 - angleA;
+        const epsilon2 = angleC2 - angleA;
+        const epsilon3 = angleC3 - angleA;
+        const epsilon4 = angleC4 - angleA;
+        const maxEpsilon = Math.max(epsilon1, epsilon2, epsilon3, epsilon4);
+        let c = 0;
+        let edge = 'A';
+
+        if (epsilon1 === maxEpsilon) {
+            c = laenge_c1;
+            edge = 'A';
+        } else if (epsilon2 === maxEpsilon) {
+            c = laenge_c2;
+            edge = 'B';
+        } else if (epsilon3 === maxEpsilon) {
+            c = laenge_c3;
+            edge = 'C';
+        } else if (epsilon4 === maxEpsilon) {
+            c = laenge_c4;
+            edge ='D';
+        }
+
+        return {
+            punktA_abs,
+            punktB_abs,
+            punktC_abs,
+            punktD_abs,
+            punktX_abs,
+            laenge_a,
+            laenge_b,
+            c,
+            laenge_c1,
+            laenge_c2,
+            laenge_c3,
+            laenge_c4,
+            maxEpsilon,
+            epsilon1,
+            epsilon2,
+            epsilon3,
+            epsilon4,
+            angleA,
+            angleC1,
+            angleC2,
+            angleC3,
+            angleC4,
+            edge
+        };
+    }
+
+    function animieren() {
+        // Winkel für die nächste Frame erhöhen
+        gamma -= 0.004; // Negativ für Uhrzeigersinn
+        gamma %= 2 * Math.PI; // Sicherstellen, dass der Winkel im Bereich [0, 2π] bleibt
+        // Szene neu zeichnen
+        zeichneSzene();
+
+        // Die nächste Animation anfordern
+        requestAnimationFrame(animieren);
+    }
+
+    // Animation starten
+    animieren();
+</script>
+
+
+</body>
+</html>
