@@ -40,10 +40,11 @@
 
         <span id="wert-gamma"></span>
         <hr style="margin:10px 0;">
-        <label>Breite: <input id="rect-width" type="number" min="10" max="1000" value="80" style="width:70px;"></label>
+        <label>Breite: <input id="rect-width" type="number" min="10" max="1000" value="20" style="width:70px;"></label>
         <label>Höhe: <input id="rect-height" type="number" min="10" max="1000" value="250" style="width:70px;"></label>
         <label>Pivot X: <input id="rect-pivotX" type="number" min="0" max="2000" value="500" style="width:70px;"></label>
         <label>Pivot Y: <input id="rect-pivotY" type="number" min="0" max="2000" value="400" style="width:70px;"></label>
+        <label>γ Speed: <input id="gamma-speed" type="number" min="-3" max="3" step="0.001" value="-0.004" style="width:70px;"></label>
     </div>
 </div>
 
@@ -57,7 +58,7 @@
 
     // Definition des Rechtecks und des Drehpunkts
     const rect = {
-        width: 80,
+        width: 20,
         height: 250,
         // Der Drehpunkt ist der Mittelpunkt des Rechtecks
         pivotX: 500,
@@ -79,6 +80,7 @@
 
     // Rotationswinkel initialisieren
     let gamma = 0;
+    let gammaSpeed = -0.004;
 
     /**
      * Berechnet die neue Position eines Punktes nach der Rotation um einen Drehpunkt.
@@ -147,8 +149,8 @@
 
     // Plot c in Relation zu gamma oben rechts
     function plotCvsGamma() {
-        const plotWidth = 320;
-        const plotHeight = 120;
+        const plotWidth = 700;
+        const plotHeight = 400;
         const margin = 30;
         const x0 = canvas.width - plotWidth - margin;
         const y0 = margin;
@@ -191,8 +193,8 @@
             const iRad = (i + gammaDegrees) * Math.PI / 180;
             const values = getValues(iRad);
             const c = values.c;
-            const px = x0 + 40 + (i / 450) * (plotWidth);
-            const py = y0 + plotHeight - 30 - (c / 500) * (plotHeight - 50);
+            const px = x0 + 40 + (i / 400) * (plotWidth);
+            const py = y0 + plotHeight - 30 - (c / 800) * (plotHeight - 50);
             if (first) {
                 ctx.moveTo(px, py);
                 first = false;
@@ -204,10 +206,11 @@
         // c1 bis c4 Kurven
         const colors = ['#3498db', '#27ae60', '#f1c40f', '#8e44ad'];
         const cNames = ['c1', 'c2', 'c3', 'c4'];
+        if (false)
         for (let j = 1; j <= 4; j++) {
             ctx.beginPath();
             first = true;
-            for (let i = 0; i <= 0; i++) {
+            for (let i = 0; i <= 360; i++) {
                 const iRad = (i + gammaDegrees) * Math.PI / 180;
                 const values = getValues(iRad);
                 const cVal = values[`laenge_c${j}`];
@@ -318,21 +321,24 @@
         const epsilon2 = angleC2 - angleA;
         const epsilon3 = angleC3 - angleA;
         const epsilon4 = angleC4 - angleA;
-        const maxEpsilon = Math.max(epsilon1, epsilon2, epsilon3, epsilon4);
+        const maxEpsilon = gammaSpeed > 0 ? Math.min(epsilon1, epsilon2, epsilon3, epsilon4 ):Math.max(epsilon1, epsilon2, epsilon3, epsilon4);
         let c = 0;
         let edge = 'A';
 
+        const circumference = rect.width + rect.height + rect.width + rect.height; // Umfang des Rechtecks
+        const length = 0*circumference * (Math.abs(gamma) % (2 * Math.PI)); // Länge des Rechtecks in Abhängigkeit von gamma
+
         if (epsilon1 === maxEpsilon) {
-            c = laenge_c1;
+            c = laenge_c1 + length;
             edge = 'A';
         } else if (epsilon2 === maxEpsilon) {
-            c = laenge_c2;
+            c = laenge_c2 + rect.width + length;
             edge = 'B';
         } else if (epsilon3 === maxEpsilon) {
-            c = laenge_c3;
+            c = laenge_c3 + rect.width + rect.height + length;
             edge = 'C';
         } else if (epsilon4 === maxEpsilon) {
-            c = laenge_c4;
+            c = laenge_c4 + rect.width + rect.height + rect.width + length;
             edge ='D';
         }
 
@@ -365,8 +371,8 @@
 
     function animieren() {
         // Winkel für die nächste Frame erhöhen
-        gamma -= 0.004; // Negativ für Uhrzeigersinn
-        gamma %= 2 * Math.PI; // Sicherstellen, dass der Winkel im Bereich [0, 2π] bleibt
+        gamma += gammaSpeed; // Negativ für Uhrzeigersinn
+        // gamma %= 2 * Math.PI; // Sicherstellen, dass der Winkel im Bereich [0, 2π] bleibt
         // Szene neu zeichnen
         zeichneSzene();
 
@@ -406,6 +412,10 @@
     });
     document.getElementById('rect-pivotY').addEventListener('input', function() {
         updateRectFromInputs();
+    });
+
+    document.getElementById('gamma-speed').addEventListener('input', function(event) {
+        gammaSpeed = parseFloat(event.target.value);
     });
 
     // Animation starten
