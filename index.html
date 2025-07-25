@@ -39,6 +39,11 @@
         <span id="wert-e4" style="display:none;"></span>
 
         <span id="wert-gamma"></span>
+        <hr style="margin:10px 0;">
+        <label>Breite: <input id="rect-width" type="number" min="10" max="1000" value="80" style="width:70px;"></label>
+        <label>Höhe: <input id="rect-height" type="number" min="10" max="1000" value="250" style="width:70px;"></label>
+        <label>Pivot X: <input id="rect-pivotX" type="number" min="0" max="2000" value="500" style="width:70px;"></label>
+        <label>Pivot Y: <input id="rect-pivotY" type="number" min="0" max="2000" value="400" style="width:70px;"></label>
     </div>
 </div>
 
@@ -368,6 +373,40 @@
         // Die nächste Animation anfordern
         requestAnimationFrame(animieren);
     }
+
+    // --- Rectangle edit controls ---
+    function updateRectFromInputs() {
+        rect.width = parseFloat(document.getElementById('rect-width').value);
+        rect.height = parseFloat(document.getElementById('rect-height').value);
+        rect.pivotX = parseFloat(document.getElementById('rect-pivotX').value);
+        rect.pivotY = parseFloat(document.getElementById('rect-pivotY').value);
+        // Definition der Punkte relativ zum Drehpunkt des Rechtecks
+        // A ist die obere linke Ecke des Rechtecks
+
+
+        punktA_rel.x = -rect.width / 2;
+        punktA_rel.y = -rect.height / 2;
+        punktB_rel.x = +rect.width / 2;
+        punktB_rel.y = -rect.height / 2;
+        punktC_rel.x = +rect.width / 2;
+        punktC_rel.y = +rect.height / 2;
+        punktD_rel.x = -rect.width / 2;
+        punktD_rel.y = +rect.height / 2;
+        punktX_rel.x = 0;
+        punktX_rel.y = 0;
+    }
+    document.getElementById('rect-width').addEventListener('input', function() {
+        updateRectFromInputs();
+    });
+    document.getElementById('rect-height').addEventListener('input', function() {
+        updateRectFromInputs();
+    });
+    document.getElementById('rect-pivotX').addEventListener('input', function() {
+        updateRectFromInputs();
+    });
+    document.getElementById('rect-pivotY').addEventListener('input', function() {
+        updateRectFromInputs();
+    });
 
     // Animation starten
     animieren();
