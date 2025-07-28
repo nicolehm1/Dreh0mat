@@ -154,6 +154,10 @@
         const margin = 30;
         const x0 = canvas.width - plotWidth - margin;
         const y0 = margin;
+        const plotMargin = {top: 10, right: 10, bottom: 30, left: 40};
+        const plotInnerWidth = plotWidth - plotMargin.left - plotMargin.right;
+        const plotInnerHeight = plotHeight - plotMargin.top - plotMargin.bottom;
+
         // Hintergrund
         ctx.save();
         ctx.globalAlpha = 0.92;
@@ -163,70 +167,89 @@
         ctx.strokeStyle = '#aaa';
         ctx.strokeRect(x0, y0, plotWidth, plotHeight);
         ctx.restore();
-        // Achsen
-        ctx.save();
-        ctx.strokeStyle = '#333';
-        ctx.beginPath();
-        ctx.moveTo(x0 + 40, y0 + plotHeight - 30);
-        ctx.lineTo(x0 + plotWidth - 10, y0 + plotHeight - 30);
-        ctx.moveTo(x0 + 40, y0 + plotHeight - 30);
-        ctx.lineTo(x0 + 40, y0 + 10);
-        ctx.stroke();
-        // Achsenbeschriftung
-        ctx.fillStyle = '#222';
-        ctx.font = '13px Arial';
-        ctx.fillText('γ (rad)', x0 + plotWidth - 55, y0 + plotHeight - 10);
-        ctx.fillText('c', x0 + 10, y0 + 25);
-        ctx.restore();
-        // Plotdaten
-        ctx.save();
-        // c (max) Kurve
-        ctx.strokeStyle = '#e74c3c';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        let first = true;
 
-
+        // Daten für den Plot berechnen
+        const plotData = [];
+        let cMin = Infinity, cMax = -Infinity;
         const gammaDegrees = (gamma * 180 / Math.PI) % 360;
 
         for (let i = 0; i <= 360; i++) {
             const iRad = (i + gammaDegrees) * Math.PI / 180;
             const values = getValues(iRad);
             const c = values.c;
-            const px = x0 + 40 + (i / 400) * (plotWidth);
-            const py = y0 + plotHeight - 30 - (c / 800) * (plotHeight - 50);
-            if (first) {
+            if (c < cMin) cMin = c;
+            if (c > cMax) cMax = c;
+            plotData.push({gamma: i, c: c});
+        }
+
+        cMin-= 50; // Offset für bessere Sichtbarkeit
+        cMax += 50; // Offset für bessere Sichtbarkeit
+
+        // Achsen
+        ctx.save();
+        ctx.strokeStyle = '#333';
+        ctx.fillStyle = '#222';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+
+        // X-Achse (gamma)
+        ctx.beginPath();
+        ctx.moveTo(x0 + plotMargin.left, y0 + plotMargin.top + plotInnerHeight);
+        ctx.lineTo(x0 + plotMargin.left + plotInnerWidth, y0 + plotMargin.top + plotInnerHeight);
+        ctx.stroke();
+        ctx.fillText('γ (°)', x0 + plotMargin.left + plotInnerWidth / 2, y0 + plotMargin.top + plotInnerHeight + 10);
+
+        for (let i = 0; i <= 360; i += 90) {
+            const x = x0 + plotMargin.left + (i / 360) * plotInnerWidth;
+            ctx.beginPath();
+            ctx.moveTo(x, y0 + plotMargin.top + plotInnerHeight);
+            ctx.lineTo(x, y0 + plotMargin.top + plotInnerHeight + 4);
+            ctx.stroke();
+            ctx.fillText(i.toString(), x, y0 + plotMargin.top + plotInnerHeight + 6);
+        }
+
+        // Y-Achse (c)
+        ctx.beginPath();
+        ctx.moveTo(x0 + plotMargin.left, y0 + plotMargin.top);
+        ctx.lineTo(x0 + plotMargin.left, y0 + plotMargin.top + plotInnerHeight);
+        ctx.stroke();
+        ctx.save();
+        ctx.translate(x0 + 10, y0 + plotMargin.top + plotInnerHeight / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('c', 0, 0);
+        ctx.restore();
+
+        const cRange = cMax - cMin;
+        const cTickCount = 4;
+        for (let i = 0; i <= cTickCount; i++) {
+            const cValue = cMin + (i / cTickCount) * cRange;
+            const y = y0 + plotMargin.top + plotInnerHeight - (i / cTickCount) * plotInnerHeight;
+            ctx.beginPath();
+            ctx.moveTo(x0 + plotMargin.left, y);
+            ctx.lineTo(x0 + plotMargin.left - 4, y);
+            ctx.stroke();
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(cValue.toFixed(0), x0 + plotMargin.left - 6, y);
+        }
+
+        // Plotdaten
+        ctx.strokeStyle = '#e74c3c';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        plotData.forEach((point, index) => {
+            const px = x0 + plotMargin.left + (point.gamma / 360) * plotInnerWidth;
+            const py = y0 + plotMargin.top + plotInnerHeight - ((point.c - cMin) / cRange) * plotInnerHeight;
+            if (index === 0) {
                 ctx.moveTo(px, py);
-                first = false;
             } else {
                 ctx.lineTo(px, py);
             }
-        }
+        });
         ctx.stroke();
-        // c1 bis c4 Kurven
-        const colors = ['#3498db', '#27ae60', '#f1c40f', '#8e44ad'];
-        const cNames = ['c1', 'c2', 'c3', 'c4'];
-        if (false)
-        for (let j = 1; j <= 4; j++) {
-            ctx.beginPath();
-            first = true;
-            for (let i = 0; i <= 360; i++) {
-                const iRad = (i + gammaDegrees) * Math.PI / 180;
-                const values = getValues(iRad);
-                const cVal = values[`laenge_c${j}`];
-                const px = x0 + 40 + (i / 450) * (plotWidth);
-                const py = y0 + plotHeight - 30 - (cVal / 500) * (plotHeight - 50);
-                if (first) {
-                    ctx.moveTo(px, py);
-                    first = false;
-                } else {
-                    ctx.lineTo(px, py);
-                }
-            }
-            ctx.strokeStyle = colors[j - 1];
-            ctx.lineWidth = 1.2;
-            ctx.stroke();
-        }
         ctx.restore();
     }
 
